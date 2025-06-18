@@ -1,0 +1,188 @@
+create database recette_cuisine;
+
+use recette_cuisine;
+CREATE TABLE utilisateur (
+    ID_USER INT NOT NULL AUTO_INCREMENT,
+    USERNAME TEXT NOT NULL,
+    EMAIL TEXT,
+    MOT_DE_PASSE TEXT NOT NULL,
+    DATE_INSCRIPTION DATETIME DEFAULT CURRENT_TIMESTAMP,
+    DERNIERE_CONNEXION DATETIME,
+    AVATAR VARCHAR(255) COMMENT 'Chemin vers limage de profil',
+    BIO TEXT COMMENT 'Description de l utilisateur',
+    REGIME_ALIMENTAIRE SET('Végétarien', 'Végétalien', 'Sans gluten', 'Sans lactose', 'Paleo', 'Keto') COMMENT 'Régime alimentaire principal',
+    PRIMARY KEY (ID_USER)
+);
+
+-- Table des catégories
+CREATE TABLE categorie (
+    ID_CATEGORIE INT NOT NULL AUTO_INCREMENT,
+    NOM_CATEGORIE TEXT NOT NULL,
+    PRIMARY KEY (ID_CATEGORIE)
+);
+
+-- Table des recettes
+CREATE TABLE recette (
+    ID_RECETTE INT NOT NULL AUTO_INCREMENT,
+    ID_CATEGORIE INT NOT NULL,
+    ID_USER INT NOT NULL,
+    TITRE TEXT NOT NULL,
+    DESCRIPTION TEXT,
+    INGREDIENTS TEXT NOT NULL,
+    INSTRUCTIONS TEXT NOT NULL,
+    IMAGE TEXT,
+    DATE_CREATION DATE DEFAULT NULL,
+    temps_preparation INT COMMENT 'Temps de préparation en minutes',
+    temps_cuisson INT COMMENT 'Temps de cuisson en minutes',
+    difficulte ENUM('Facile', 'Moyen', 'Difficile') DEFAULT 'Facile',
+    calories INT,
+    proteines DECIMAL(5,2),
+    glucides DECIMAL(5,2),
+    lipides DECIMAL(5,2),
+    regime_alimentaire SET('Végétarien', 'Végétalien', 'Sans gluten', 'Sans lactose', 'Paleo', 'Keto'),
+    PRIMARY KEY (ID_RECETTE),
+    FOREIGN KEY (ID_CATEGORIE) REFERENCES categorie(ID_CATEGORIE),
+    FOREIGN KEY (ID_USER) REFERENCES utilisateur(ID_USER)
+);
+
+-- Table des ingrédients
+CREATE TABLE ingredient (
+    ID_INGREDIENT INT NOT NULL AUTO_INCREMENT,
+    NOM_INGREDIENT VARCHAR(100) NOT NULL,
+    PRIMARY KEY (ID_INGREDIENT),
+    UNIQUE KEY (NOM_INGREDIENT)
+);
+
+-- Table de liaison recette-ingrédient
+CREATE TABLE recette_ingredient (
+    ID_RECETTE INT NOT NULL,
+    ID_INGREDIENT INT NOT NULL,
+    QUANTITE DECIMAL(6,2) COMMENT 'Quantité nécessaire',
+    UNITE VARCHAR(20) COMMENT 'Unité de mesure (g, ml, cuillère à soupe, etc.)',
+    PRIMARY KEY (ID_RECETTE, ID_INGREDIENT),
+    FOREIGN KEY (ID_RECETTE) REFERENCES recette(ID_RECETTE) ON DELETE CASCADE,
+    FOREIGN KEY (ID_INGREDIENT) REFERENCES ingredient(ID_INGREDIENT) ON DELETE CASCADE
+);
+
+-- Table des notes (séparée des commentaires)
+CREATE TABLE note (
+    ID_NOTE INT NOT NULL AUTO_INCREMENT,
+    ID_RECETTE INT NOT NULL,
+    ID_USER INT NOT NULL,
+    NOTE TINYINT NOT NULL CHECK (NOTE BETWEEN 1 AND 5),
+    DATE_NOTE DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (ID_NOTE),
+    FOREIGN KEY (ID_RECETTE) REFERENCES recette(ID_RECETTE) ON DELETE CASCADE,
+    FOREIGN KEY (ID_USER) REFERENCES utilisateur(ID_USER) ON DELETE CASCADE,
+    UNIQUE KEY (ID_RECETTE, ID_USER)
+);
+
+-- Table des commentaires (séparée des notes)
+CREATE TABLE commentaire (
+    ID_COMMENTAIRE INT NOT NULL AUTO_INCREMENT,
+    ID_RECETTE INT NOT NULL,
+    ID_USER INT NOT NULL,
+    CONTENU TEXT NOT NULL,
+    DATE_COMMENTAIRE DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (ID_COMMENTAIRE),
+    FOREIGN KEY (ID_RECETTE) REFERENCES recette(ID_RECETTE) ON DELETE CASCADE,
+    FOREIGN KEY (ID_USER) REFERENCES utilisateur(ID_USER) ON DELETE CASCADE
+);
+
+-- Table des favoris
+CREATE TABLE favoris (
+    ID_USER INT NOT NULL,
+    ID_RECETTE INT NOT NULL,
+    DATE_AJOUT DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (ID_USER, ID_RECETTE),
+    FOREIGN KEY (ID_USER) REFERENCES utilisateur(ID_USER) ON DELETE CASCADE,
+    FOREIGN KEY (ID_RECETTE) REFERENCES recette(ID_RECETTE) ON DELETE CASCADE
+);
+
+-- Table des collections
+CREATE TABLE collection (
+    ID_COLLECTION INT NOT NULL AUTO_INCREMENT,
+    ID_USER INT NOT NULL,
+    NOM_COLLECTION VARCHAR(100) NOT NULL,
+    DESCRIPTION TEXT,
+    DATE_CREATION DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (ID_COLLECTION),
+    FOREIGN KEY (ID_USER) REFERENCES utilisateur(ID_USER) ON DELETE CASCADE
+);
+
+-- Table de liaison collection-recette
+CREATE TABLE collection_recette (
+    ID_COLLECTION INT NOT NULL,
+    ID_RECETTE INT NOT NULL,
+    DATE_AJOUT DATETIME DEFAULT CURRENT_TIMESTAMP,
+    ORDRE INT COMMENT 'Ordre dans la collection',
+    PRIMARY KEY (ID_COLLECTION, ID_RECETTE),
+    FOREIGN KEY (ID_COLLECTION) REFERENCES collection(ID_COLLECTION) ON DELETE CASCADE,
+    FOREIGN KEY (ID_RECETTE) REFERENCES recette(ID_RECETTE) ON DELETE CASCADE
+);
+
+-- Table des préférences utilisateur
+CREATE TABLE preference_utilisateur (
+    ID_USER INT NOT NULL,
+    PREFERENCE VARCHAR(50) NOT NULL COMMENT 'Type de préférence (ingrédient, régime, etc.)',
+    VALEUR VARCHAR(100) NOT NULL COMMENT 'Valeur de la préférence',
+    SCORE INT DEFAULT 1 COMMENT 'Importance de la préférence',
+    PRIMARY KEY (ID_USER, PREFERENCE, VALEUR),
+    FOREIGN KEY (ID_USER) REFERENCES utilisateur(ID_USER) ON DELETE CASCADE
+);
+
+-- Table d'historique de recherche
+CREATE TABLE historique_recherche (
+    ID_HISTORIQUE INT NOT NULL AUTO_INCREMENT,
+    ID_USER INT,
+    TERME_RECHERCHE VARCHAR(255) NOT NULL,
+    DATE_RECHERCHE DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (ID_HISTORIQUE),
+    FOREIGN KEY (ID_USER) REFERENCES utilisateur(ID_USER) ON DELETE SET NULL
+);
+
+-- Table d'historique de consultation
+CREATE TABLE historique_consultation (
+    ID_HISTORIQUE INT NOT NULL AUTO_INCREMENT,
+    ID_USER INT,
+    ID_RECETTE INT NOT NULL,
+    DATE_CONSULTATION DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (ID_HISTORIQUE),
+    FOREIGN KEY (ID_USER) REFERENCES utilisateur(ID_USER) ON DELETE SET NULL,
+    FOREIGN KEY (ID_RECETTE) REFERENCES recette(ID_RECETTE) ON DELETE CASCADE
+);
+
+-- Vue pour les notes moyennes des recettes
+CREATE VIEW vue_notes_recettes AS
+SELECT 
+    r.ID_RECETTE,
+    r.TITRE,
+    AVG(n.NOTE) AS note_moyenne,
+    COUNT(n.ID_NOTE) AS nombre_notes
+FROM 
+    recette r
+LEFT JOIN 
+    note n ON r.ID_RECETTE = n.ID_RECETTE
+GROUP BY 
+    r.ID_RECETTE, r.TITRE;
+
+-- Vue pour les recettes populaires
+CREATE VIEW vue_recettes_populaires AS
+SELECT 
+    r.ID_RECETTE,
+    r.TITRE,
+    COUNT(f.ID_RECETTE) AS nombre_favoris,
+    COUNT(hc.ID_RECETTE) AS nombre_vues,
+    vnr.note_moyenne
+FROM 
+    recette r
+LEFT JOIN 
+    favoris f ON r.ID_RECETTE = f.ID_RECETTE
+LEFT JOIN 
+    historique_consultation hc ON r.ID_RECETTE = hc.ID_RECETTE
+LEFT JOIN 
+    vue_notes_recettes vnr ON r.ID_RECETTE = vnr.ID_RECETTE
+GROUP BY 
+    r.ID_RECETTE, r.TITRE, vnr.note_moyenne
+ORDER BY 
+    nombre_favoris DESC, nombre_vues DESC, note_moyenne DESC;

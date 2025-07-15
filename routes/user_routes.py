@@ -150,7 +150,8 @@ def update_user_profile(current_user, user_id):
             if existing:
                 return jsonify({'message': 'Ce nom d\'utilisateur est déjà pris'}), 400
             user.USERNAME = data['username']
-        
+        if 'email' in data:
+            user.EMAIL = data['email']
         if 'bio' in data:
             user.BIO = data['bio']
         

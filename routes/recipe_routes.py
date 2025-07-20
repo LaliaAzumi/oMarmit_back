@@ -25,7 +25,7 @@ def get_recipes():
         max_prep_time = request.args.get('maxPrepTime', '')
         difficulty = request.args.get('difficulty', '')
         diet = request.args.get('diet', '')
-        min_rating = request.args.get('minRating', '')
+        min_rating = request.args.get('minRating', '')  
         max_calories = request.args.get('maxCalories', '')
         
         # Enregistrer la recherche dans l'historique
